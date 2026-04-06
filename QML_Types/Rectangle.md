@@ -1,0 +1,1 @@
+Trong QML, thẻ Rectangle mặc định có width = 0 và height = 0. Cho nên khi ta sử dụng thể này cần phải gán những giá trị mà ta muốn nó thể hiện

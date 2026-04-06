@@ -1,0 +1,1 @@
+Các thuộc tính bắt đầu bằng chữ Layout được gọi là attached properties. Chỉ có td khi và chỉ khi component đó là con trực tiếp của Layout (như RowLayout, ColumnLayout, GridLayout)
