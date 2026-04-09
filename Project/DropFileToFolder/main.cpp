@@ -1,7 +1,7 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <QQmlContext> // BẮT BUỘC PHẢI CÓ THÊM DÒNG NÀY
-#include "vaultcontroller.h" // Include header của bạn
+#include <QQmlContext>
+#include "vaultcontroller.h"
 
 int main(int argc, char *argv[])
 {
@@ -13,7 +13,6 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
 
     // 2. KẾT NỐI C++ VỚI QML
-    // Dòng này định nghĩa cái tên "vaultCtrl" để dùng trong QML
     engine.rootContext()->setContextProperty("vaultCtrl", &vaultController);
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));

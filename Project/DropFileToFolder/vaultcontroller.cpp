@@ -8,36 +8,36 @@
 VaultController::VaultController(QObject *parent) : QObject(parent) {}
 
 bool VaultController::copyPathToVault(QString sourceUrl, QString vaultName) {
-    // 1. Lấy đường dẫn sạch
+    // 1. Lấy đường dẫn sạch để không bị phụ thuộc vào từng loại hệ điều hành khác nhau
     QString cleanSource = QUrl(sourceUrl).toLocalFile();
     if (cleanSource.isEmpty()) return false;
 
     // 2. Định nghĩa RootDir (Đảm bảo có dấu / ở cuối)
-    QString rootPath = "D:/Qt/Work/Lean_day_Qt/output_app/";
+    QString rootPath = "/home/GhostRider/Work/test_Qt/output_app/";
 
     // Tạo đường dẫn đầy đủ đến thư mục 'vault' bên trong folder của VaultName
-    // Ví dụ: D:/Qt/Work/Lean_day_Qt/output_app/MyVault/vault/
+    // Ví dụ: D:/Qt/Work/Lean_day_Qt/output_app/..../vault/
     QString fullDirPath = rootPath + vaultName + "/vault/";
 
-    // 3. ÉP BUỘC TẠO THƯ MỤC (Cực kỳ quan trọng)
+    // 3. Kiểm tra thư mục đã có / chưa -> If chưa -> tạo thư mục
     QDir dir;
     if (!dir.exists(fullDirPath)) {
         // mkpath sẽ tạo tất cả thư mục trung gian nếu chúng chưa tồn tại
         if (dir.mkpath(fullDirPath)) {
-            qDebug() << "[INFO] Da tao thanh cong chuoi thu muc:" << fullDirPath;
+            qDebug() << "[INFO] Đã tạo thành công thư mục:" << fullDirPath;
         } else {
-            qDebug() << "[ERROR] Khong the tao thu muc. Kiem tra quyen ghi o o D:";
+            qDebug() << "[ERROR] Không thể tạo thư mục!";
             return false;
         }
     }
 
     // 4. Xác định tên file và đường dẫn đích cuối cùng
-    QFileInfo sourceInfo(cleanSource);
+    QFileInfo sourceInfo(cleanSource); // cleanSource = D:/Qt/Work/Lean_day_Qt/output_app/ -> sourceInfo.fileName() = output_app
     QString destinationPath = fullDirPath + sourceInfo.fileName();
 
-    qDebug() << "--- TIEN HANH COPY ---";
-    qDebug() << "Tu:" << cleanSource;
-    qDebug() << "Den:" << destinationPath;
+    qDebug() << "\n--- TIEN HANH COPY ---";
+    qDebug() << "[FROM] " << cleanSource;
+    qDebug() << "[TO]   " << destinationPath;
 
     // 5. Gọi hàm đệ quy copy
     bool success = copyRecursively(cleanSource, destinationPath);
@@ -46,24 +46,36 @@ bool VaultController::copyPathToVault(QString sourceUrl, QString vaultName) {
 }
 
 // Hàm đệ quy thần thánh để copy File lẫn Folder
-bool VaultController::copyRecursively(const QString &srcFilePath, const QString &tgtFilePath)
+bool VaultController::copyRecursively(const QString &srcFilePath, const QString &targetFilePath)
 {
+    /*
+    srcFilePath    = C:/Nguon/A
+        + Chứa secret.txt, LuongThang12.txt
+    targetFilePath = D:/Dich/A
+    */
+
     QFileInfo srcFileInfo(srcFilePath);
 
     // NẾU LÀ THƯ MỤC
     if (srcFileInfo.isDir()) {
-        QDir targetDir(tgtFilePath);
-        targetDir.cdUp();
-        if (!targetDir.mkdir(QFileInfo(tgtFilePath).fileName())) {
-            // Thư mục đã tồn tại, tiếp tục chui vào trong
+        QDir targetDir(targetFilePath); // Ex: targetFilePath = D:/Dich/A -> targetDir = D:/Dich/A
+        targetDir.cdUp();     // -> D:/Dich/
+
+        // QFileInfo(targetFilePath).fileName() = "A"
+        if (!targetDir.mkdir(QFileInfo(targetFilePath).fileName())) {
+            // Tạo thành công thư mục A
         }
 
+        /* Tạo một đối tượng thư mục của nguồn để thao tác với thư mục */
         QDir sourceDir(srcFilePath);
-        QStringList fileNames = sourceDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
 
-        foreach (const QString &fileName, fileNames) {
-            const QString newSrcFilePath = srcFilePath + "/" + fileName;
-            const QString newTgtFilePath = tgtFilePath + "/" + fileName;
+        // Danh sách file của thư mục nguồn
+        QStringList listFile = sourceDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+        // listFile chua secret.txt va LuongThang12.txt
+
+        foreach (const QString &fileName, listFile) {
+            const QString newSrcFilePath = srcFilePath + "/" + fileName;    // Ex: newSrcFilePath = "C:/Nguon/A" + "/" + "secret.txt"
+            const QString newTgtFilePath = targetFilePath + "/" + fileName; // Ex: newTgtFilePath = "D:/Dich/A" + "/" + "secret.txt"
             if (!copyRecursively(newSrcFilePath, newTgtFilePath)) {
                 return false;
             }
@@ -72,10 +84,10 @@ bool VaultController::copyRecursively(const QString &srcFilePath, const QString 
     // NẾU LÀ FILE
     else {
         // Ghi đè nếu file đã tồn tại
-        if (QFile::exists(tgtFilePath)) {
-            QFile::remove(tgtFilePath);
+        if (QFile::exists(targetFilePath)) {
+            QFile::remove(targetFilePath);
         }
-        if (!QFile::copy(srcFilePath, tgtFilePath)) {
+        if (!QFile::copy(srcFilePath, targetFilePath)) {
             return false;
         }
     }
