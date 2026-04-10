@@ -1,0 +1,2 @@
+#include "filenodemodel.h"
+

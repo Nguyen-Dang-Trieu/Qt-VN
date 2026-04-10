@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>View/Sibar_component/SidebarActions.qml</file>
+        <file>View/Sibar_component/SidebarCreatePopup.qml</file>
+        <file>View/Sibar_component/SidebarGeneral.qml</file>
+        <file>View/Sibar_component/SidebarLogo.qml</file>
+        <file>View/Sibar_component/SidebarRenamePopup.qml</file>
+        <file>View/Sibar_component/SidebarVaultList.qml</file>
+        <file>View/FolderTreeView.qml</file>
+        <file>View/SideBar.qml</file>
+        <file>View/MainContent.qml</file>
+        <file>View/RightPanel.qml</file>
+    </qresource>
+</RCC>
