@@ -1,13 +1,13 @@
 ListView hoat dong dua tren mo hinh Model - View - Delegate.
 - Model: la "kho du lieu" (noi dung hien thi)
-- Delegate: La "ban thiet ke" (moi dong du lieu se trong nhu the nao)
-- View (ListView): "nguoi dieu phoi" (sap xep cac dong va quan li viec cuon)
+- Delegate: La "ban thiet ke" (mỗi row dữ liệu se trong nhu the nao)
+- View (ListView): "nguoi dieu phoi" (sap xep cac row va quan li viec scroll)
 
 # Cac thanh phan cot loi cua ListView
 De mot ListView hoat dong, can it nhat 3 yeu to:
 
 ## Model (Du lieu)
-Co the dung ListModel cho du lieu tinh OR ket noi voi C++ (nhu QAbstractListModel) cho du lieu phuc tap
+Co the dung ListModel cho du lieu tĩnh "HOẶC" ket noi voi C++ (nhu QAbstractListModel) cho du lieu phuc tap
 
 ~~~
 ListModel {
@@ -25,7 +25,7 @@ Component {
     id: myDelegate
     Item {
         width: parent.width; height: 40
-        Text { text: name; color: model.color } // 'name' lấy từ Model
+        Text { text: name; color: color } // 'name' lấy từ Model
     }
 }
 ~~~
@@ -143,3 +143,34 @@ nang cao cho danh sach:
  - Hovered: Tu dong biet khi nao chuot dang di chuyen qua.
  - Pressed: Biet khi nao user dang nhan giu
  - Signals: Co san cac su kien nhu onClicked, onDoubleClicked, onHold
+
+# CAC HAM DUOC SU DUN
+## append 
+
+ append trong listview la them record moi vao trong ListModel
+
+ Hieu don gian ListView giong nhu mo mang object 
+
+- Truoc khi append
+ ~~~
+ vaultModel = [
+   { name: "A", path: "/a" },
+   { name: "B", path: "/b" }
+]
+ ~~~
+
+- Sau khi append
+~~~
+vaultModel = [
+   { name: "A", path: "/a" },
+   { name: "B", path: "/b" },
+   { name: "NewVault", path: "/new" }  ← thêm vào cuối
+]
+~~~
+
+## get
+
+Lay toan bo data cua mot object trong ListModel theo index
+~~~
+data = vaultModel.get(index)
+~~~
