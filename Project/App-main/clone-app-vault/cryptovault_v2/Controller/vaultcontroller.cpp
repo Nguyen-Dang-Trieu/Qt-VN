@@ -3,6 +3,7 @@
 #include "VaultDB.h"
 #include "logger.h"
 #include "support.h"
+#include "aes_256_gcm.h"
 
 #include <QJsonObject>
 #include <QJsonArray>
@@ -12,10 +13,42 @@
 VaultController::VaultController(QObject *parent)
     : QObject(parent)
 {
+    /*
+     - Khởi tạo PathDB và gắn nó vào trong vaultcontroller.
+     - Việc truyền con trỏ this vào giúp Path DB tự hủy khi VaultController bị hủy
+    */
     pathDB = new CPathDB(this);
+
+    // Note: CPathDB đã tự gọi createPathDB() trong constructor của nó nên DB sẽ tự động được mở ngay tại đây.
+}
+
+bool VaultController::openVault(const QString &vaultName, const QString &password, const QString &path) {
+    // Test params
+    LOG_DEBUG("Vault Name: " + vaultName);
+    LOG_DEBUG("Password: " + password);
+    LOG_DEBUG("Path: " + path);
+
+//    // 1. Lấy đường dẫn từ PathDB
+//    QString vaultPath = pathDB->getVaultPathByName(vaultName);
+
+//    if (vaultPath.isEmpty()) {
+//        LOG_ERROR("Don't find " + vaultName);
+//        return false;
+//    }
+
+    // 2. (Optional) Test mở VaultDB ở đây để check mật khẩu có đúng không ?
+
+    // 3. Phát signal báo cho main.cpp (và NodeModel) biết đường dẫn & password
+    emit vaultOpened(path, password);
+    return true;
 }
 
 bool VaultController::createVaultFolder(const QString &vaultName, const QString &password, const QString &path) {
+    /* --- LOG DEBUG --- */
+    // LOG_DEBUG("password DB: " + password);
+
+
+    // ----------
     if (vaultName.isEmpty() || password.isEmpty() || path.isEmpty()) return false;
 
     QString basePath    = path + "/" + vaultName;
@@ -28,6 +61,7 @@ bool VaultController::createVaultFolder(const QString &vaultName, const QString 
         return false;
     }
 
+    /* Tạo folder vault */
     VaultDB vDB;
     bool isDbReady = vDB.open(dbPath, password);
     if (isDbReady) {
@@ -40,6 +74,14 @@ bool VaultController::createVaultFolder(const QString &vaultName, const QString 
 
     if (!vDB.migrate()) {
         LOG_ERROR("Migrate Database Failed!");
+        return false;
+    }
+
+    /* Tao folder vault thanh cong -> Luu thong tin va path vao trong Path DB*/
+    bool saveToPathDB = pathDB->saveVaultFolder(vaultName, basePath);
+
+    if (!saveToPathDB) {
+        LOG_ERROR("Unable to save" + vaultName + "information into Path DB");
         return false;
     }
 
@@ -260,7 +302,7 @@ bool VaultController::copyRecursively(const QString &srcFilePath, const QString 
         quint64 id_file = results.first().m_id; // lay id cua node dau tien
 
         QString vaultDataDir = QFileInfo(targetFilePath).absolutePath();
-        ingestFileToBuckets(vDB, id_file, srcFilePath, vaultDataDir, "empty_key");
+        ingestFileToBuckets(vDB, id_file, srcFilePath, vaultDataDir);
     }
 
     return true;
@@ -268,20 +310,34 @@ bool VaultController::copyRecursively(const QString &srcFilePath, const QString 
 
 bool VaultController::ingestFileToBuckets(VaultDB &vDB, quint64 nodeID,
                                          QString pathSrcFile,
-                                         QString pathOfVaultFolder,
-                                         QString password)
+                                         QString pathOfVaultFolder)
 {
     vDB.nodeData.setDb(&vDB._db_);
     vDB.bucket.setDb(&vDB._db_);
+    vDB.vaultConfig.setDb(&vDB._db_);
 
-    /* ----Tim bucket ---- */
+    /* ---- Get Master Key ---- */
+    QVector<VaultConfig> configs = vDB.vaultConfig.fetch("LIMIT 1");
+    if (configs.isEmpty()) {
+        LOG_DEBUG("Table vault config empty!");
+        return false;
+    }
+
+    // 1. Tạo File Header (Bảo vệ ContentKey bằng MasterKey)
+    QByteArray contentKey = randomKey();
+    QByteArray fileHeader = createFileHeader(configs.first().masterKey.toUtf8(), contentKey);
+    if (fileHeader.isEmpty()) {
+        LOG_ERROR("Create Header File is Faild!");
+        return false;
+    }
+
+    /* ---- Tìm & Mở Bucket ---- */
     quint64 bucketID = ensureAvailableBucket(vDB, pathOfVaultFolder);
     if (bucketID == 0) {
         LOG_ERROR("It is not possible to obtain or create Bucket!");
         return false;
     }
 
-    // Mo file Bucket
     QString query = QString("WHERE id = '%1' LIMIT 1").arg(bucketID);
     QVector<Bucket> results = vDB.bucket.fetch(query);
     if(results.isEmpty()) {
@@ -292,10 +348,32 @@ bool VaultController::ingestFileToBuckets(VaultDB &vDB, quint64 nodeID,
     Bucket &targetBucket = results.first();
     LOG_DEBUG("targetBucket id:" + QString::number(targetBucket.id));
 
+    QString pathOfBucket = targetBucket.relative_path;
+    QFile bucketFile(pathOfBucket);
+    if(!bucketFile.open(QIODevice::Append | QIODevice::ReadWrite)) {
+        LOG_ERROR("Failed to open Bucket File! " + pathOfBucket);
+        return false;
+    }
 
-    QString pathOfBucket = results.first().relative_path;
-    QByteArray slicesRaw    = results.first().slices;
-    // Test update slices
+    /* --- Mở File Nguồn --- */
+    QFile     srcFile(pathSrcFile);
+    QFileInfo srcFileInfo(pathSrcFile);
+    if(!srcFile.open(QIODevice::ReadOnly)) {
+        LOG_ERROR("Unable to open source file: " + srcFileInfo.fileName());
+        return false;
+    }
+
+    /* --- Ghi Header vào Bucket --- */
+    // Lấy offset hiện tại (cuối file bucket) trước khi ghi Header của file NÀY
+    // qint64 fileStartOffset = bucketFile.pos();
+
+    // GHI 60 BYTES HEADER VÀO TRƯỚC.
+    // Các slice của file này sẽ tự động nối tiếp ngay sau byte thứ 60.
+    bucketFile.write(fileHeader);
+
+    /* --- Đọc và Mã hóa từng Chunk --- */
+    quint64 slice_number = 0;
+    QByteArray chunk;
 
     QJsonDocument doc = QJsonDocument::fromJson(targetBucket.slices);
     QJsonArray    arrSlices;
@@ -303,55 +381,49 @@ bool VaultController::ingestFileToBuckets(VaultDB &vDB, quint64 nodeID,
         arrSlices = doc.array();
     }
 
-    QJsonObject newObj;
-    newObj["slice_uuid"] = "test_";
-    newObj["offset"]     = 0;
-
-    arrSlices.append(newObj);
-
-    QJsonDocument newDoc(arrSlices);
-    targetBucket.slices = newDoc.toJson(QJsonDocument::Compact);
-
-    if(vDB.bucket.save(targetBucket)) {
-        LOG_DEBUG("update table bucket successful");
-    }
-
-    // LOG_DEBUG(pathOfBucket);
-    QFile bucketFile(pathOfBucket);
-    if(!bucketFile.open(QIODevice::Append | QIODevice::WriteOnly)) {
-        LOG_ERROR("Failt to open Bucket File!" + pathOfBucket);
-        return false;
-    }
-
-    /* --- File can luu tru --- */
-    QFile     srcFile(pathSrcFile);         // ops of file
-    QFileInfo srcFileInfo(pathSrcFile);     // info of file
-    if(!srcFile.open(QIODevice::ReadOnly)) {
-        LOG_ERROR("Unable to open source file: " + srcFileInfo.fileName());
-        return false;
-    }
-
-    /* --- Read and Write data --- */
-    quint64 slice_number = 0;
-    QByteArray chunk;
     while (!(chunk = srcFile.read(CHUNK_SIZE)).isEmpty()) {
         QString sliceUuid   = srcFileInfo.completeBaseName() + "-" + generateRandomLetters();
 
+        // Offset này đã tự động tịnh tiến sau khi ghi 60 byte Header
+        qint64 currentOffset = bucketFile.pos();
+
+        // Padding cho Chunk cuối cùng nếu bị thiếu byte
         if(chunk.size() < CHUNK_SIZE) {
-            chunk.append(CHUNK_SIZE - chunk.size(), '0');
+            chunk.append(CHUNK_SIZE - chunk.size(), (char)0x00);
         }
-        // Ghi vào file
-        bucketFile.write(chunk);
 
-        // Kiem tra bucket file dat toi gioi han hay chua
-        // .. Todo
+        // Chuẩn bị biến cho GCM
+        QByteArray chunkNonce = randomHeaderNonce(); // 12 bytes ngẫu nhiên
+        QByteArray chunkTag(16, 0);                  // 16 bytes Tag
+        QByteArray encryptedChunk(CHUNK_SIZE, 0);    // 64 KiB
+        QByteArray chunkAAD = QByteArray::number(slice_number); // Dùng slice_number chống tráo đổi
 
-        // Insert vao table node_data
+        // Mã hóa nội dung file bằng ContentKey
+        bool encryptOk = aes_gcm_encrypt(chunk, contentKey, chunkNonce, chunkAAD, encryptedChunk, chunkTag);
+        if(!encryptOk) {
+            LOG_ERROR("Failed to encrypt chunk number: " + QString::number(slice_number));
+            return false;
+        }
+
+        // Ghi vào file bucket vật lý theo đúng chuẩn SLICE_SIZE = 12 + 65536 + 16 = 65564 bytes
+        bucketFile.write(chunkNonce);
+        bucketFile.write(encryptedChunk);
+        bucketFile.write(chunkTag);
+
+        // Update JSON cho bucket
+        QJsonObject sliceObj;
+        sliceObj["slice_uuid"] = sliceUuid;
+        sliceObj["offset"]     = currentOffset;
+        arrSlices.append(sliceObj);
+
+        // Insert vào table node_data
         NodeData curr;
         curr.node_id      = nodeID;
         curr.bucket_id    = bucketID;
         curr.slice_uuid   = sliceUuid;
         curr.slice_number = slice_number;
+        // Không cần curr.header nữa vì đã lưu ở file vật lý
+
         if (!vDB.nodeData.insert(curr)) {
             LOG_ERROR("Cannot add slice to node_data table!");
             return false;
@@ -359,14 +431,18 @@ bool VaultController::ingestFileToBuckets(VaultDB &vDB, quint64 nodeID,
 
         slice_number++;
     }
-    bucketFile.close();
 
-////    // 6. Kiểm tra nếu bucket đã đầy (Ví dụ giới hạn 100MB)
-////    const qint64 MAX_BUCKET_SIZE = 100 * 1024 * 1024;
-////    if (QFileInfo(fullPath).size() >= MAX_BUCKET_SIZE) {
-////        vDB.bucket.is_full = 1;
-////        vDB.bucket.update(); // Cập nhật trạng thái vào DB
-////    }
+    bucketFile.close();
+    srcFile.close();
+
+    // Lưu chuỗi JSON đã update vào table Bucket
+    QJsonDocument newDoc(arrSlices);
+    targetBucket.slices = newDoc.toJson(QJsonDocument::Compact);
+    if(vDB.bucket.save(targetBucket)) {
+        LOG_DEBUG("Update table bucket slices successful. Saved " + QString::number(slice_number) + " slices.");
+    } else {
+        LOG_ERROR("Failed to save slices to bucket table.");
+    }
 
     return true;
 }
@@ -415,11 +491,205 @@ quint64 VaultController::ensureAvailableBucket(VaultDB &vDB, QString pathOfVault
 
 /**
  * @brief Xử lí và đưa dữ liệu của file từ trong vault ra ngoài
- * @param fileId
- * @param destPath
- * @param fileName
+ * @param vaultName  Tên của folder name mà user đang tương tác
+ */
+bool VaultController::exportFileFromVault(QString destPath, QString vaultName, QString vaultPass, int fileId, QString fileName) {
+    LOG_INFO("exportFileFromVault: Start exporting " + fileName);
+
+    // 1. Lấy thông tin đường dẫn Vault
+    QString query = QString("WHERE name = '%1' LIMIT 1").arg(vaultName);
+    QVector<CSavedVault> results = pathDB->User_InfoVaults.fetch(query);
+    if(results.isEmpty()) return false;
+
+    CSavedVault &User_InfoVaults = results.first();
+    QString dbPathVault = User_InfoVaults.path + "/" + vaultName + ".db";
+
+    // 2. Mở DB
+    VaultDB vDB;
+    if (!vDB.open(dbPathVault, vaultPass)) return false;
+
+    vDB.nodeData.setDb(&vDB._db_);
+    vDB.bucket.setDb(&vDB._db_);
+    vDB.vaultConfig.setDb(&vDB._db_);
+    vDB.node.setDb(&vDB._db_);         // Mở table Node để lấy kích thước file gốc
+
+    /* --- Lấy Master Key và Kích thước file gốc --- */
+    QVector<VaultConfig> row_1 = vDB.vaultConfig.fetch("LIMIT 1");
+    if (row_1.isEmpty()) return false;
+    QByteArray rawMasterKey = row_1.first().masterKey.toUtf8();
+
+    QVector<Node> fileNodes = vDB.node.fetch(QString("WHERE id = %1 LIMIT 1").arg(fileId));
+    if (fileNodes.isEmpty()) return false;
+    quint64 originalFileSize = fileNodes.first().m_length; // Dùng để cắt bỏ Padding lúc ghi xong
+
+    // 3. Lấy danh sách các mảnh (sắp xếp theo slice_number để nối đúng thứ tự)
+    query = QString("WHERE node_id = %1 ORDER BY slice_number ASC").arg(fileId);
+    QVector<NodeData> nodeDatasOfFile = vDB.nodeData.fetch(query);
+
+    if(nodeDatasOfFile.isEmpty()) {
+        LOG_ERROR(fileName + " no data found in DB!");
+        return false;
+    }
+
+    // 4. Mở file đích để chuẩn bị ghi
+    /* Dành cho Ubuntu */
+//    if (!destPath.startsWith("/")) {
+//        destPath = "/" + destPath;
+//    }
+
+    /* Dành cho window */
+    // Ghi chú: Không nên hardcode + ".txt" vì nếu lưu ảnh/pdf sẽ hỏng đuôi file
+    QString outFilePath = QDir(destPath).filePath(fileName);
+    // QDir::filePath sẽ tự động xử lý dấu gạch chéo giữa folder và tên file một cách chuẩn xác.
+
+    QFile destFile(outFilePath);
+    if (!destFile.open(QIODevice::WriteOnly)) {
+        LOG_ERROR("Cannot create destination file: " + destFile.fileName());
+        // In thêm lỗi của QFile để debug chính xác hơn
+        LOG_ERROR("System Error: " + destFile.errorString());
+        return false;
+    }
+
+    /* --- BƯỚC QUAN TRỌNG: PHỤC HỒI CONTENT KEY TỪ FILE HEADER --- */
+    QByteArray ContentKey;
+    {
+        NodeData firstSlice = nodeDatasOfFile.first();
+        QVector<Bucket> buckets = vDB.bucket.fetch(QString("WHERE id = %1 LIMIT 1").arg(firstSlice.bucket_id));
+        if (buckets.isEmpty()) return false;
+
+        QFile bucketFile(buckets.first().relative_path);
+        if (!bucketFile.open(QIODevice::ReadOnly)) return false;
+
+        QJsonDocument doc = QJsonDocument::fromJson(buckets.first().slices);
+        QJsonArray arrSlices = doc.array();
+        qint64 firstSliceOffset = -1;
+        for (int i = 0; i < arrSlices.size(); ++i) {
+            QJsonObject obj = arrSlices[i].toObject();
+            if (obj["slice_uuid"].toString() == firstSlice.slice_uuid) {
+                firstSliceOffset = obj["offset"].toVariant().toLongLong();
+                break;
+            }
+        }
+
+        if (firstSliceOffset == -1) return false;
+
+        // Seek và đọc đúng 68 bytes Header
+        if (!bucketFile.seek(firstSliceOffset - 68)) {
+            LOG_ERROR("Lỗi: Không thể seek tới vị trí File Header!");
+            return false;
+        }
+        QByteArray headerData = bucketFile.read(68);
+        bucketFile.close();
+
+        // --- ĐÂY LÀ CHỖ THAY ĐỔI DUY NHẤT ---
+        ContentKey = decryptContentKey(headerData, rawMasterKey);
+
+        if (ContentKey.isEmpty()) {
+            LOG_ERROR("Header Decryption Error: Incorrect Master Key or Corrupted Data!");
+            destFile.close();
+            destFile.remove();
+            return false;
+        }
+        // ------------------------------------
+
+        LOG_DEBUG("ContentKey recovery successful! Preparing to decrypt the fragments...");
+    }
+
+    /* --- BƯỚC 5: DUYỆT TỪNG MẢNH ĐỂ GIẢI MÃ DATA --- */
+    for (const NodeData &curNodeData : nodeDatasOfFile) {
+        QString bQuery = QString("WHERE id = %1 LIMIT 1").arg(curNodeData.bucket_id);
+        QVector<Bucket> buckets = vDB.bucket.fetch(bQuery);
+
+        if (buckets.isEmpty()) continue;
+        Bucket &bucket = buckets.first();
+
+        QFile bucketFile(bucket.relative_path);
+        if (!bucketFile.open(QIODevice::ReadOnly)) continue;
+
+        QJsonDocument doc = QJsonDocument::fromJson(bucket.slices);
+        QJsonArray arrSlices = doc.array();
+        qint64 offset = -1;
+
+        for (int i = 0; i < arrSlices.size(); ++i) {
+            QJsonObject obj = arrSlices[i].toObject();
+            if (obj["slice_uuid"].toString() == curNodeData.slice_uuid) {
+                offset = obj["offset"].toVariant().toLongLong();
+                break;
+            }
+        }
+
+        if (offset != -1 && bucketFile.seek(offset)) {
+            // Đọc đúng cấu trúc 1 Slice đã ghi: Nonce (12) + Data (65536) + Tag (16)
+            QByteArray chunkNonce   = bucketFile.read(12);
+            QByteArray encryptedChunk = bucketFile.read(CHUNK_SIZE);
+            QByteArray chunkTag     = bucketFile.read(16);
+
+            // AAD phải chính xác là slice_number
+            QByteArray chunkAAD = QByteArray::number(curNodeData.slice_number);
+
+            // Giải mã Chunk bằng ContentKey
+            QByteArray decryptedChunk = aes_gcm_decrypt(encryptedChunk, chunkTag, ContentKey, chunkNonce, chunkAAD);
+
+            // Xác thực Tag của GCM
+            if (decryptedChunk.isEmpty()) {
+                LOG_ERROR("Lỗi MAC GCM: Slice " + QString::number(curNodeData.slice_number) + " bị hỏng hoặc tráo đổi vị trí!");
+                destFile.close();
+                destFile.remove(); // Hủy toàn bộ file vì dữ liệu không đáng tin
+                return false;
+            }
+
+            // Ghi dữ liệu đã giải mã vào file đích
+            destFile.write(decryptedChunk);
+        } else {
+            LOG_ERROR("Slice UUID not found in Bucket JSON: " + curNodeData.slice_uuid);
+        }
+
+        bucketFile.close();
+    }
+
+    // 6. Cắt bỏ Padding (bytes 0x00 thừa ở chunk cuối cùng)
+    destFile.resize(originalFileSize);
+    destFile.close();
+    vDB.close();
+
+    LOG_INFO("Export file " + fileName + " successful! Khôi phục dung lượng gốc: " + QString::number(originalFileSize) + " bytes.");
+    return true;
+}
+
+/**
+ * @brief Tao File Header 68 Bytes (12 Bytes IV + 8 Bytes 0xFF + 32 Bytes Encrypted ContentKey + 16 Bytes Tag)
  * @return
  */
-bool VaultController::exportFileFromVault(int fileId, QString destPath, QString fileName) {
+QByteArray VaultController::createFileHeader(const QByteArray &masterKey, const QByteArray &contentKey) {
+    QByteArray headerNonce = randomHeaderNonce(); // 12 Bytes
+    QByteArray cleartextPayload = QByteArray(8, (char)0xFF) + contentKey; // 40 bytes
+    QByteArray ciphertextPayload(40, 0);
+    QByteArray headerTag(16, 0);
+    QByteArray headerAAD(12, 0);
 
+    if (!aes_gcm_encrypt(cleartextPayload, masterKey, headerNonce, headerAAD, ciphertextPayload, headerTag)) {
+        return QByteArray();
+    }
+    return headerNonce + ciphertextPayload + headerTag; // 68 bytes
+}
+
+/**
+ * @brief Lay ContentKey tu Header File
+ * @return
+ */
+QByteArray VaultController::decryptContentKey(const QByteArray &headerData, const QByteArray &masterKey) {
+    if (headerData.size() < 68) return QByteArray();
+
+    QByteArray nonce = headerData.left(12);
+    QByteArray cipher = headerData.mid(12, 40);
+    QByteArray tag = headerData.mid(52, 16);
+    QByteArray aad(12, 0);
+
+    QByteArray decrypted = aes_gcm_decrypt(cipher, tag, masterKey, nonce, aad);
+
+    // Kiểm tra Magic Bytes 0xFF
+    if (decrypted.isEmpty() || decrypted.left(8) != QByteArray(8, (char)0xFF)) {
+        return QByteArray();
+    }
+    return decrypted.mid(8); // Trả về 32 bytes ContentKey
 }

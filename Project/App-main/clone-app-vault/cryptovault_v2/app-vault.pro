@@ -45,8 +45,8 @@ SOURCES += \
     main.cpp \
     src/ORM_SQLite/ezsql.cpp \
     src/crypto/aes_256_gcm.cpp \
-    src/crypto/hkdf.cpp \
-    src/crypto/scrypt.cpp
+    #src/crypto/hkdf.cpp \
+    #src/crypto/scrypt.cpp
 
 HEADERS += \
     $$PWD/3rd/sqlite3/sqlite3.h \
@@ -65,8 +65,8 @@ HEADERS += \
     logger.h \
     src/ORM_SQLite/ezsql.h \
     src/crypto/aes_256_gcm.h \
-    src/crypto/hkdf.h \
-    src/crypto/scrypt.h
+    #src/crypto/hkdf.h \
+    #src/crypto/scrypt.h
 
 
 RESOURCES += qml.qrc

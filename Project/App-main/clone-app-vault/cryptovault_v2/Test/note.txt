@@ -98,3 +98,16 @@ void createTestFiles(const QString &folder)
         qDebug() << "Created:" << fileName << "size =" << size;
     }
 }
+
+#### Hiểu flow work của vaucontroller -> model
+1. QML gọi: vaultController.openVault(...) (FolderViewTree.qml)
+2. Trong C++: emit vaultOpened(path, password);
+3. Qt tự động gọi: nodeModel.setVaultContext(path, password);
+4. Trong Model: 
+~~~
+void setVaultContext(...) {
+    ...
+    loadFolder(1);
+}
+~~~
+=> Model update data → QML update UI

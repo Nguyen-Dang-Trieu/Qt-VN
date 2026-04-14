@@ -23,13 +23,21 @@ int main(int argc, char *argv[])
     //----
     QQmlApplicationEngine engine;
 
-    // Create Controller
+    // Khởi tạo controller và model
     VaultController vaultCtrl; // CConstructor VaultController::VaultController() duoc call
-    engine.rootContext()->setContextProperty("vaultController", &vaultCtrl);
+    NodeModel       nodeModel;
+    // nodeModel.loadFolder(1); // Load node con co parent ID = 1 (Node con cua Root)
 
-    NodeModel nodeModel;
-    nodeModel.loadFolder(1); // Load node con co parent ID = 1 (Node con cua Root)
+    // Create Controller
+    QObject::connect(&vaultCtrl, &VaultController::vaultOpened,
+                         &nodeModel, &NodeModel::setVaultContext);
+
+    // Chuyển qua cho QML
+    engine.rootContext()->setContextProperty("vaultController", &vaultCtrl);
     engine.rootContext()->setContextProperty("listNodes", &nodeModel);
+
+
+
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,

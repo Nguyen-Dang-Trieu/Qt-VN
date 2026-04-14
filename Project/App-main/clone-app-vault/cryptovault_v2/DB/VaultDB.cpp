@@ -1,4 +1,5 @@
 #include "VaultDB.h"
+#include "logger.h"
 
 #define VAULT_APP_DB_VERSION 1
 

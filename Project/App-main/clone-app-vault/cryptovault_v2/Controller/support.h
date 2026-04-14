@@ -4,11 +4,10 @@
 #include <QByteArray>
 #include <openssl/rand.h>
 #include <QRandomGenerator>
-#include "ezsql.h"
 #include <QVariant>
 
 QByteArray randomKey(void);
-
+QByteArray randomHeaderNonce(void);
 // Random char to add slice_uuid
 QString generateRandomLetters(int len = 6);
 

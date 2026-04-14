@@ -3,15 +3,12 @@
 
 #include <QFile>
 #include <QByteArray>
-#include "hkdf.h"
-#include "scrypt.h"
 
 // DB
 #include "ezsql.h"
 #include "Tbl_Node.h"
 #include "Tbl_Nodedata.h"
 #include "Tbl_Del.h"
-#include "logger.h"
 #include "Tbl_Vaultconfig.h"
 #include "Tbl_Bucket.h"
 #include "Tbl_Xattr.h"

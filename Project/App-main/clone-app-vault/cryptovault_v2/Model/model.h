@@ -6,6 +6,7 @@
 #include "Tbl_Node.h"
 #include "ezsql.h"
 #include "VaultDB.h"
+#include "logger.h"
 
 class NodeModel : public QAbstractListModel {
     Q_OBJECT
@@ -25,10 +26,10 @@ public:
         const Node &item = Nodes[index.row()];
 
         switch (role) {
-            case IdRole: return item.m_id;
-            case TypeRole: return item.m_type;
-            case NameRole: return item.m_name;
-            default: return QVariant();
+        case IdRole: return item.m_id;
+        case TypeRole: return item.m_type;
+        case NameRole: return item.m_name;
+        default: return QVariant();
         }
     }
 
@@ -75,7 +76,18 @@ public:
         endResetModel();
     }
 
+public slots:
+    void setVaultContext(const QString &dbPath, const QString &password) {
+        m_currentDbPath = dbPath;
+        m_currentPassword = password;
+
+        // Tự động load thư mục gốc (parentId = 1) khi được set context mới
+        loadFolder(1);
+    }
+
 private:
-    QVector<Node> Nodes; // Nơi chứa dữ liệu phù hợp theo parrent ID do VIEW truyền vào
+    QVector<Node> Nodes;         // Nơi chứa dữ liệu phù hợp theo parrent ID do VIEW truyền vào
+    QString m_currentDbPath;     // Lưu đường dẫn
+    QString m_currentPassword;   // Lưu mật khẩu
 };
 #endif // MODEL_H

@@ -3,15 +3,13 @@
 #include <QDir>
 #include <QUuid>
 
-#include "hkdf.h"
-#include "scrypt.h"
 #include "ezsql.h"
 #include "logger.h"
 
 #include "PathDB.h"
 #include "Tbl_PathVault.h"
 
-#define CPATH_APP_DB_VERSION 1
+#define CPATH_APP_DB_VERSION        1
 #define HARDCODED_PATH_DB_PASSWORD "CryptVault_PathDB_Secret_2026!@"
 
 CPathDB::CPathDB(QObject *parent) : QObject(parent) {

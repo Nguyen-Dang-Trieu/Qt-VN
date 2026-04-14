@@ -19,6 +19,16 @@ QByteArray randomKey(void) {
     return Key;
 }
 
+// HeaderNonce (IV)
+QByteArray randomHeaderNonce(void) {
+    QByteArray headerNonce(12, 0); // 12 Bytes
+    if (!RAND_bytes(reinterpret_cast<unsigned char*>(headerNonce.data()), headerNonce.size())) {
+        LOG_ERROR("Random Key to failed");
+    }
+
+    return headerNonce;
+}
+
 // Ops with cloumn "slices" of Table bucket
 QJsonArray parseSlices(const QByteArray &raw)
 {
