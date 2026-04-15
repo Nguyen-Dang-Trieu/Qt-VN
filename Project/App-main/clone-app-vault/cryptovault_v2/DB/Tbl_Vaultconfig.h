@@ -9,10 +9,8 @@ public:
     VaultConfig();
 
     qint64  id           = 0;
-    QString name    = "";
     quint32 version      = 0;
-    QString masterKey    = "";
-    QString macKey       = "";
+    QString contentKey   = "";
     QString expirePeriod = "";
 
     void fields() override;

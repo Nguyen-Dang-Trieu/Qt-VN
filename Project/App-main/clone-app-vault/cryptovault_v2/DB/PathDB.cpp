@@ -242,26 +242,18 @@ bool CPathDB::deleteVaultFolder(const QString &vaultFullPath) {
 bool CPathDB::updateVaultFolder(const QString &oldPath, const QString &newPath) {
     if (!_db_.connection()) return false;
 
-    EzSql::Stmt stmt(_db_.connection());
-    QString sql = "UPDATE saved_vaults SET path = ? WHERE path = ?";
-
-    if (stmt.prepare(sql) != SQLITE_OK) {
-        LOG_ERROR("SQL Error: Failed to prepare Update statement");
+    QVector<CSavedVault> vaults = User_InfoVaults.fetch(QString("WHERE path = '%1'").arg(oldPath));
+    if (vaults.isEmpty()) {
+        LOG_ERROR("Vault not found in Path DB: " + QFileInfo(oldPath).fileName());
         return false;
     }
 
-    if (stmt.bind(1, newPath) != SQLITE_OK || stmt.bind(2, oldPath) != SQLITE_OK) {
-        LOG_ERROR("SQL Error: Failed to bind path data for Update");
-        return false;
-    }
+    CSavedVault vault = vaults.first();
+    vault.name = QFileInfo(newPath).fileName();
+    vault.path = newPath;
+    User_InfoVaults.save(vault);
 
-    if (stmt.step() != SQLITE_DONE) {
-        const char* errMsg = sqlite3_errmsg(_db_.connection());
-        LOG_ERROR(QString("SQLite update error: %1").arg(errMsg ? errMsg : "Unknown"));
-        return false;
-    }
-
-    LOG_INFO("Successfully updated path in DB to: " + newPath);
+    LOG_INFO("Successfully Update: " + QFileInfo(newPath).fileName());
     return true;
 }
 

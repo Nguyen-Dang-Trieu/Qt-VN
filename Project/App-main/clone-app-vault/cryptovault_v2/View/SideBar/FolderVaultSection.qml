@@ -27,19 +27,23 @@ ColumnLayout {
     }
 
     ScrollView {
+        id: vaultScrollView
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true
 
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
         ColumnLayout {
             id: vaultListLayout
-            width: parent.width
+            width: vaultScrollView.availableWidth
             spacing: 4
 
             Repeater {
                 model: vaultSectionRoot.vaultModel
 
                 delegate: NavDelegate {
+                    Layout.fillWidth: true
                     selectedIndex: vaultSectionRoot.selectedIndex
                     primaryColor: vaultSectionRoot.primaryColor
 

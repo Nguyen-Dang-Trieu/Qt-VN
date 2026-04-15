@@ -181,7 +181,7 @@ Rectangle {
 
                     // Xử lý riêng khi click CHUỘT PHẢI
                     if (mouse.button === Qt.RightButton) {
-                        console.log("[DEBUG] Đã nhận click chuột phải, mở Menu cho: " + nodeName)
+                        console.log("[DEBUG] Đã nhận click chuột phải, mở Menu cho: " + nodeName + " (../MainContent/MainContent.qml)")
 
                         // Gán thông tin file vào Popup
                         fileContextMenu.targetNodeId = nodeId

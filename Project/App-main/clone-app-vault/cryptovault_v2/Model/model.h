@@ -42,44 +42,55 @@ public:
     }
 
     Q_INVOKABLE void loadFolder(int parentId) {
-        beginResetModel();
+            beginResetModel();
+            /* LOG DEBUG */
+    //        LOG_DEBUG("[MODEL] Name Vault: " + m_currentVautName);    // Ex: "hello"
+    //        LOG_DEBUG("[MODEL] Pass Vault: " + m_currentPassword);    // Ex: "123456"
+    //        LOG_DEBUG("[MODEL] Path Vault: " + m_currentPathVault);   // Ex: "/home/GhostRider/Work/clone-app-vault_/output_test_app/hello"
 
-        Nodes.clear();
+            Nodes.clear(); // Xoa toan bo du lieu hien tai dang chua trong QVector<Node> Nodes
 
-        VaultDB vDB;
-        QString dbPath     = "D:\\Qt\\Work\\App\\clone-app-vault\\clone-app-vault\\output_test_app\\hello\\hello.db";
-        QString passwordDB = "emptyKey";
-        bool isDbReady = vDB.open(dbPath, passwordDB);
-        if(!isDbReady) {
-            LOG_ERROR("Model can't open hello.DB");
+            VaultDB vDB;
+            QString fullPathDB = m_currentPathVault + "/" + m_currentVautName + ".db";
+            QString passwordDB = m_currentPassword;
+            bool    isDbReady  = vDB.open(fullPathDB, passwordDB);
+
+            if(!isDbReady) {
+                LOG_ERROR("Model can't open hello.DB");
+            }
+
+            LOG_WARNING("[MODEL] Login " + m_currentVautName + " DB Successfull!");
+            vDB.node.setDb(&vDB._db_);
+
+            // Tien hanh lay du lieu node (file/folder) tu trong table node in Vault DB
+            QString query = QString("WHERE parent_id = %1").arg(parentId); // '%1' -> %1 boi vi parent ID la INTERGER
+            QVector<Node> results = vDB.node.fetch(query);
+            if(!results.empty()) {
+                LOG_ERROR("Model can't get data node from Table node in DB!");
+            }
+
+            for (const Node &curNode : results) {
+                Node item;
+                item.m_id     = curNode.m_id;
+                item.m_name   = curNode.m_name;
+                item.m_type   = curNode.m_type;
+                item.m_parent = curNode.m_parent;
+
+                Nodes.append(item);
+            }
+
+            endResetModel();
         }
-
-        vDB.node.setDb(&vDB._db_);
-
-        // Tien hanh lay du lieu node (file/folder) tu trong table node in Vault DB
-        QString query = QString("WHERE parent_id = %1").arg(parentId); // '%1' -> %1 boi vi parent ID la INTERGER
-        QVector<Node> results = vDB.node.fetch(query);
-        if(!results.empty()) {
-            LOG_ERROR("Model can't get data node from Table node in DB!");
-        }
-
-        for (const Node &curNode : results) {
-            Node item;
-            item.m_id     = curNode.m_id;
-            item.m_name   = curNode.m_name;
-            item.m_type   = curNode.m_type;
-            item.m_parent = curNode.m_parent;
-
-            Nodes.append(item);
-        }
-
-        endResetModel();
-    }
 
 public slots:
-    void setVaultContext(const QString &dbPath, const QString &password) {
-        m_currentDbPath = dbPath;
-        m_currentPassword = password;
+    void setVaultContext(const QString &vaultName, const QString &passVault, const QString &pathDB) {
+//        LOG_DEBUG("[MODEL] Name DB: " + vaultName);
+//        LOG_DEBUG("[MODEL] Pass DB: " + passVault);
+//        LOG_DEBUG("[MODEL] Path DB: " + pathDB);
+
+        m_currentVautName = vaultName;
+        m_currentPassword = passVault;
+        m_currentPathVault   = pathDB;
 
         // Tự động load thư mục gốc (parentId = 1) khi được set context mới
         loadFolder(1);
@@ -87,7 +98,12 @@ public slots:
 
 private:
     QVector<Node> Nodes;         // Nơi chứa dữ liệu phù hợp theo parrent ID do VIEW truyền vào
-    QString m_currentDbPath;     // Lưu đường dẫn
-    QString m_currentPassword;   // Lưu mật khẩu
+
+    // Các thông tin về Vault hiện tại mà User đang thao tác
+    QString m_currentVautName;   // Lưu tên vault
+    QString m_currentPassword;   // Lưu mật khẩu vault = mật khẩu DB vault
+    QString m_currentPathVault;     // Lưu đường dẫn DB vault
+
 };
 #endif // MODEL_H
+

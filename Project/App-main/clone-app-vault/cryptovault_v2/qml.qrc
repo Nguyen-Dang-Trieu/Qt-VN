@@ -10,6 +10,7 @@
         <file>View/SideBar/Popup/CreateVaultPopup.qml</file>
         <file>View/Icons/visibility.svg</file>
         <file>View/Icons/visibility_off.svg</file>
+        <file>View/Icons/visibility_lock.svg</file>
         <file>View/SideBar/SideBar.qml</file>
         <file>View/SideBar/SideBarLogic.js</file>
         <file>View/SideBar/ActionButtons.qml</file>
@@ -23,5 +24,7 @@
         <file>View/RightPanel/RightPanel.qml</file>
         <file>View/MainContent/Popup/ExportPopup.qml</file>
         <file>View/MainContent/Popup/MenuPopup.qml</file>
+        <file>View/SignupView/ConfirmView.qml</file>
+        <file>View/VaultContextMenu.qml</file>
     </qresource>
 </RCC>
