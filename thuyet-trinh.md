@@ -5,8 +5,7 @@ Cryptomator hiện đang làm rất tốt nhiệm vụ bảo vệ nội dung fil
 cứu, em nhận thấy các ứng dụng này vẫn còn tồn tại một vài vấn đề mà tin tặc có thể 
 khai thác mà không cần phải giải mã dữ liệu:
 
-Vấn đề đầu tiên
-"Thưa sếp và các anh, đây là minh họa cụ thể cho lỗ hổng Truncate (cắt xén dữ liệu).
+Vấn đề đầu tiên mà em muốn ns ở đây khi file bị cắt xén
 
 [Chỉ vào phần trên]
 Thông thường, khi mã hóa một file, ứng dụng sẽ chia nhỏ dữ liệu thành từng khối (ví dụ 32 KiB) và 
