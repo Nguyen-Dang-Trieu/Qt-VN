@@ -1,0 +1,113 @@
+- Nếu bạn gọi: vDB.node.count("");
+SQL sinh ra: SELECT COUNT(*) FROM node 
+
+Kết quả: Tổng số lượng tất cả các file và thư mục có trong bảng.
+
+- Nếu bạn gọi: vDB.node.count("WHERE type = 1");
+
+SQL sinh ra: SELECT COUNT(*) FROM node WHERE type = 1
+
+Kết quả: Tổng số lượng các thư mục (với type = 1 là Folder).
+
+# Lấy toàn bộ dữ liệu 1 Row theo cột (Fetch)
+
+// Giả sử bạn có class User kế thừa BaseDBO
+User user;
+EzSql::DbSet<User> userSet;
+userSet.setDb(&yourDatabase); // yourDatabase là đối tượng EzSql::DataBase đã open
+
+// Lấy user theo cột "username"
+// partQuery là đoạn sau của câu SELECT * FROM users ...
+QString condition = "WHERE username = 'admin' LIMIT 1";
+QVector<User> results = userSet.fetch(condition);
+
+if (!results.isEmpty()) {
+    user = results.first();
+    qDebug() << "Tìm thấy user ID:" << user.id;
+}
+
+# Update cac cot chi dinh
+user.password = "new_password_123";
+
+// Chỉ update đúng cột "password", dựa vào ID đã có trong đối tượng user
+if (userSet.update(user, {"password"})) {
+    qDebug() << "Update thành công!";
+}
+
+
+# Thao tac voi TABLE
+
+    // --------------- Thêm vào hiện tại để test
+    vDB.bucket.setDb(&vDB._db_);
+
+    Bucket row1;
+    row1.relative_path = "row1_path";
+    row1.slices = QByteArray("row1_path");
+
+    vDB.bucket.insert(row1);
+
+    Bucket row2;
+    row2.relative_path = "row2_path";
+    row2.slices = QByteArray("row2_path");
+
+    vDB.bucket.insert(row2);
+
+### Code tao data test
+main.cpp: //createTestFiles("D:\\Qt\\Work\\App\\clone-app-vault\\clone-app-vault\\cryptovault_v2\\Test\\data_test");
+
+void createTestFiles(const QString &folder)
+{
+    QDir().mkpath(folder);
+
+    QList<int> sizes = {
+        10,     // 10 B
+        32,     // 32 B
+        64,     // 64 B
+        128,    // 128 B
+        256,    // 256 B
+        512,    // 512 B
+        1024,   // 1 KB
+        2048,   // 2 KB
+        4096,   // 4 KB
+        8192    // 8 KB
+    };
+
+    for (int i = 0; i < sizes.size(); i++)
+    {
+        QString fileName = folder + QString("/file_%1.txt").arg(QChar('A' + i));
+        QFile file(fileName);
+
+        if (!file.open(QIODevice::WriteOnly)) {
+            qDebug() << "Cannot create:" << fileName;
+            continue;
+        }
+
+        int size = sizes[i];
+        QByteArray data;
+        data.reserve(size);
+
+        char ch = 'A' + i;
+
+        for (int j = 0; j < size; j++) {
+            data.append(ch);
+        }
+
+        file.write(data);
+        file.close();
+
+        qDebug() << "Created:" << fileName << "size =" << size;
+    }
+}
+
+#### Hiểu flow work của vaucontroller -> model
+1. QML gọi: vaultController.openVault(...) (FolderViewTree.qml)
+2. Trong C++: emit vaultOpened(path, password);
+3. Qt tự động gọi: nodeModel.setVaultContext(path, password);
+4. Trong Model: 
+~~~
+void setVaultContext(...) {
+    ...
+    loadFolder(1);
+}
+~~~
+=> Model update data → QML update UI

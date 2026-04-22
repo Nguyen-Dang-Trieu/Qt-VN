@@ -1,0 +1,13 @@
+# Package Information for pkg-config
+
+prefix=/e/data/signet-pro-pc/3rd/sqlcipher-4.5.0/dist_mingw
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: SQLCipher
+Description: SQL database engine
+Version: 3.36.0
+Libs: -L${libdir} -lsqlcipher
+Libs.private: -lz -lcrypto 
+Cflags: -I${includedir}/sqlcipher

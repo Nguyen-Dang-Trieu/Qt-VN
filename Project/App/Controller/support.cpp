@@ -1,0 +1,58 @@
+#include "support.h"
+#include "logger.h"
+
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QFile>
+#include <QIODevice>
+
+#include "Tbl_Bucket.h"
+#include "vaultcontroller.h"
+
+QByteArray randomKey(void) {
+    QByteArray Key(32, 0); // 32 Bytes
+    if (!RAND_bytes(reinterpret_cast<unsigned char*>(Key.data()), Key.size())) {
+        LOG_ERROR("Random Key to failed");
+    }
+
+    return Key;
+}
+
+// HeaderNonce (IV)
+QByteArray randomHeaderNonce(void) {
+    QByteArray headerNonce(12, 0); // 12 Bytes
+    if (!RAND_bytes(reinterpret_cast<unsigned char*>(headerNonce.data()), headerNonce.size())) {
+        LOG_ERROR("Random Key to failed");
+    }
+
+    return headerNonce;
+}
+
+
+QString generateRandomLetters(int len)
+{
+    const QString chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    QString out;
+
+    for (int i = 0; i < len; ++i) {
+        int idx = QRandomGenerator::global()->bounded(chars.size());
+        out += chars[idx];
+    }
+
+    return out;
+}
+
+// Add new: 2026-04-22-drew
+QString getDbPathFromVaultFolder(const QString &vaultPath) {
+    QDir dir(vaultPath);
+
+    // Lấy tất cả file (không lấy folder)
+    QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+
+    if (files.size() != 1) {
+        return ""; // lỗi: không đúng structure
+    }
+
+    return files.first().absoluteFilePath();
+}
