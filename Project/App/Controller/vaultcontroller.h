@@ -11,17 +11,18 @@
 
 #include "VaultDB.h"
 #include "PathDB.h"
+#include "support.h"
 
-//#define BUCKET_SIZE (128 * 1024 * 1024) // 128 MiB
-//#define CHUNK_SIZE  (32 * 1024) // 32 KiB
-//#define SLICE_SIZE  CHUNK_SIZE + 12 + 16 // (ciphertext + IV + Tag
-//#define SLICES_PER_BUCKET (BUCKET_SIZE / SLICE_SIZE)
+#define BUCKET_SIZE         (128 * 1024 * 1024)                   // 128 MiB
+#define CHUNK_SIZE          (32 * 1024)                           // 32 KiB
+#define SLICE_SIZE          (CHUNK_SIZE + 12 + 16)                // (ciphertext + IV + Tag
+#define SLICES_PER_BUCKET   (BUCKET_SIZE / SLICE_SIZE)
 
 // Scale
-#define BUCKET_SIZE       (1024 * 1024)                 // 1 MiB  - 1.048.576 Bytes
-#define CHUNK_SIZE        (32 * 1024)                   // 32 KiB - 32 768 Bytes
-#define SLICE_SIZE        (CHUNK_SIZE + 28)             // CHUNK_SIZE + 12 IV + 16 Tag
-#define SLICES_PER_BUCKET (BUCKET_SIZE / SLICE_SIZE)    // 31 slices mỗi bucket
+//#define BUCKET_SIZE       (1024 * 1024)                 // 1 MiB  - 1.048.576 Bytes
+//#define CHUNK_SIZE        (32 * 1024)                   // 32 KiB - 32 768 Bytes
+//#define SLICE_SIZE        (CHUNK_SIZE + 28)             // CHUNK_SIZE + 12 IV + 16 Tag
+//#define SLICES_PER_BUCKET (BUCKET_SIZE / SLICE_SIZE)    // 31 slices mỗi bucket
 
 // NEW 2026-04-15
 class VaultController : public QObject {
@@ -69,8 +70,13 @@ private:
 private:
 
     // Heler functions
-    bool copyRecursively(const QString &srcFilePath, const QString &targetFilePath, VaultDB &vDB, int parentId, const QString &basePath);
-    bool ingestFileToBuckets(VaultDB &vDB, quint64 nodeID, QString pathSrcFile, QString pathOfVaultFolder);
+    bool scanAndInsertNodes(const QString &srcFilePath, VaultDB &vDB, int parentId, QList<FileProcessTask> &pendingFiles);
+    bool ingestFileToBuckets(VaultDB &vDB,
+                             quint64 nodeID,
+                             QString pathSrcFile,
+                             QString pathOfVaultFolder,
+                             quint64 &cachedBucketID,
+                             qint64 fileSize);
     quint64 ensureAvailableBucket(VaultDB &vDB, QString pathOfVaultFolder);
 
     bool exportNodeRecursive(VaultDB &vDB, QString destPath, int nodeId, QString nodeName, int nodeType, const QByteArray &contentKey, const QString &vaultPath);

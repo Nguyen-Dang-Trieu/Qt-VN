@@ -26,3 +26,5 @@ Cách nó hoạt động
 - Mỗi phần chạy trên một thread trong thread pool
 - Function lambda được gọi cho từng phần tử
 - Thread chính bị block cho tới khi tất cả xong
+
+Giải thích sâu hơn về cách Qt chia task thành thread như nào (work stealing, chunk size) ?
