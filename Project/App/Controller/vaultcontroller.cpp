@@ -143,7 +143,6 @@ bool VaultController::deleteVault(const QString &vaultPath) {
     return dbSuccess;
 }
 
-// NEW 2024-15-4
 QString VaultController::renameVault(const QString &oldPath, const QString &newNameVault) {
     QString cleanOldPath = oldPath;
     if (cleanOldPath.startsWith("file://")) {
