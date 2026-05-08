@@ -13,3 +13,52 @@ Khi bạn đặt một thành phần vào trong Page, nó sẽ tự động tín
 
 3. Kết hợp hoàn hảo với StackView
 Trong các ứng dụng di động hoặc ứng dụng có nhiều lớp màn hình, Page thường được dùng làm "con" của StackView.
+
+
+
+## Ví dụ
+~~~
+import QtQuick 2.15
+import QtQuick.Window 2.15
+import QtQuick.Controls 2.0
+
+Window {
+    width: 640
+    height: 480
+    visible: true
+    title: qsTr("Hello World")
+
+
+    Page {
+        anchors.fill: parent
+
+        // 1. Phần đầu trang
+        header: ToolBar {
+            Label {
+                text: "Trang Chủ"
+                anchors.centerIn: parent
+                font.pixelSize: 20
+            }
+        }
+
+        // 2. Phần nội dung chính (viết trực tiếp bên trong)
+        contentItem: Item {
+            Column {
+                anchors.centerIn: parent
+                spacing: 20
+
+                Text { text: "Chào mừng bạn đến với ứng dụng!" }
+                Button { text: "Khám phá ngay" }
+            }
+        }
+
+        // 3. Phần chân trang
+        footer: TabBar {
+            TabButton { text: "Danh mục" }
+            TabButton { text: "Thông báo" }
+            TabButton { text: "Cài đặt" }
+        }
+    }
+
+}
+~~~

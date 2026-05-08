@@ -1,0 +1,1 @@
+Giống thẻ Button chỉ khác là bo tròn các góc
