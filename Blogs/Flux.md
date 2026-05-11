@@ -1,6 +1,4 @@
-Bài đọc thêm: https://vinascript.com/ngon-ngu-lap-trinh/flux-la-gi-cach-xay-dung-ung-dung-voi-flux-don-gian.html
-
-https://github.com/benlau/quickflux
+[QuickFlux](https://deepwiki.com/benlau/quickflux/2-core-components)
 
 Flux là một kiến trúc một chiều flow, giúp quản lí luồng trong ứng dụng
 

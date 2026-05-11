@@ -1,3 +1,7 @@
+# https://doc.qt.io/qt-6/qml-qtqml-component.html
+
+Thẻ component là thẻ luôn luôn có trong mỗi thẻ khác khi ta tạo một đối tượng.
+
 Để hiểu component trong qml, ta có thể tưởng tượng nó như một công thức nấu ăn trong quyển sách.
 
 ## Lí do
@@ -16,3 +20,18 @@ Trong QML, khi ta dùng Regtangle{}, nó sẽ hiện ra ngay lập tức. Nhưng
 - Component.onDestruction: chạy trước khi object được xóa (Ví dụ: Lưu dữ liệu trước khi xóa)
 
 # Methods
+
+
+~~~qml
+    Rectangle {
+        width: 100; height: 100; color: "red"
+
+        Component.onCompleted: {
+            console.log("Rectangle duoc khoi tao")
+        }
+
+        Component.onDestruction: {
+            console.log("Rectangle bi huy")
+        }
+    }
+~~~
